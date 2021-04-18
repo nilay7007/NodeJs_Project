@@ -15,12 +15,15 @@ exports.postAddProduct = (req, res, next) => {
   const description = req.body.description;
   //create creates a new models and imeediately saves it to database
   //where.build craret a obj then do save manually
-  Product.create({
-    title: title,
-    price: price,
-    imageUrl: imageUrl,
-    description: description
-  })
+  //we are having hasmnay and belongs to association so sequelize gives 
+  //us a extra function req.user.createProduct to do adduserId thingg
+  req.user
+    .createProduct({
+      title: title,
+      price: price,
+      imageUrl: imageUrl,
+      description: description
+    })
     .then(result => {
       //console.log(result);
       console.log('Created Product');
@@ -37,8 +40,11 @@ exports.getEditProduct = (req, res, next) => {
     return res.redirect('/');
   }
   const prodId = req.params.productId;
-  Product.findByPk(prodId)
-    .then(product => {
+  req.user
+    .getProducts({ where: { id: prodId } })
+    // Product.findById(prodId)
+    .then(products => {
+      const product = products[0];
       if (!product) {
         return res.redirect('/');
       }
@@ -72,8 +78,10 @@ exports.postEditProduct = (req, res, next) => {
     })
     .catch(err => console.log(err));
 };
+
 exports.getProducts = (req, res, next) => {
-  Product.findAll()
+  req.user
+    .getProducts()
     .then(products => {
       res.render('admin/products', {
         prods: products,

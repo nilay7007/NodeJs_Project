@@ -3,8 +3,12 @@ const errorController=require('./controllers/error')
 const express = require('express');
 const bodyParser = require('body-parser');
 const db = require('./util/database');
-const app = express();
 const sequelize = require('./util/database');
+const Product = require('./models/product');
+const User = require('./models/user');
+const Cart = require('./models/cart');
+const CartItem = require('./models/cart-item');
+const app = express();
 
 app.set('view engine', 'ejs');
 app.set('views', 'views');
@@ -15,22 +19,71 @@ const shopRoutes = require('./routes/shop');
   
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, 'public')));
+//its a middleware whihc runs after sequelize statements(sync and all initialization)
+//is done.so it will be executed after that(depends)
+app.use((req, res, next) => {
+  User.findByPk(1)
+    .then(user => {
+      //storing i n request-> req.user..
+      req.user = user;
+      // = user is an sequelize object not the js object
+      next();
+    })
+    .catch(err => console.log(err));
+});
 
 app.use('/admin', adminRoutes);
 app.use(shopRoutes);
 
 app.use(errorController.get404);
-//sync create a table into database from our model .and if table is there the relations
+
+
+Product.belongsTo(User, { constraints: true, onDelete: 'CASCADE' });
+//user created product. onDelete: 'CASCADE'->if user is deleted then product shud also
+//be deleted
+User.hasMany(Product);
+User.hasOne(Cart);
+Cart.belongsTo(User);
+Cart.belongsToMany(Product, { through: CartItem });
+Product.belongsToMany(Cart, { through: CartItem });
+
 
 sequelize
+  //.sync({ force: true })
   .sync()
   .then(result => {
-    console.log(result);
+    return User.findByPk(1);
+    // console.log(result);
+  })
+  .then(user => {
+    if (!user) {
+      return User.create({ name: 'Max', email: 'test@test.com' });
+    }
+    return user;
+    //return user;->promise as everything rteurned in promise is itself a promise
+  })
+  .then(user => {
+    // console.log(user);
+    return user.createCart();
+  })
+  .then(cart => {
+    // console.log(user);
     app.listen(3000);
   })
   .catch(err => {
     console.log(err);
-  }); 
+  });
+//sync create a table into database from our model .and if table is there the relations
+
+// sequelize
+//   .sync()
+//   .then(result => {
+//     console.log(result);
+//     app.listen(3000);
+//   })
+//   .catch(err => {
+//     console.log(err);
+//   }); 
 
   /*
   sequelize
